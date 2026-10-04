@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rifbot Lua Generator</title>
+<style>
+:root{
+  --bg:#0b0d10;--panel:#12161b;--panel2:#171c22;--line:#252c34;
+  --text:#eef2f6;--muted:#8e9aa7;--accent:#7aa2ff;--good:#6dd6a0;
+  --warn:#ffc86a;--danger:#ff7a8a;--radius:16px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(circle at top,#141a22 0,#0b0d10 38%);color:var(--text);font:14px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
+button,input,select{font:inherit}
+.topbar{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:18px 22px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(11,13,16,.92);backdrop-filter:blur(16px);z-index:5}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:38px;height:38px;border-radius:12px;background:linear-gradient(145deg,#7aa2ff,#7d6cff);display:grid;place-items:center;font-weight:900;color:white;box-shadow:0 10px 30px rgba(122,162,255,.25)}
+.brand h1{font-size:17px;margin:0}
+.brand small{display:block;color:var(--muted);margin-top:2px}
+.badge{border:1px solid var(--line);background:var(--panel);padding:6px 10px;border-radius:999px;color:var(--muted)}
+.layout{display:grid;grid-template-columns:270px minmax(340px,1fr) minmax(360px,1.05fr);gap:14px;padding:14px;max-width:1600px;margin:auto}
+.panel{background:rgba(18,22,27,.92);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;min-height:calc(100vh - 100px)}
+.panel-head{padding:15px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+.panel-head h2{font-size:13px;margin:0;letter-spacing:.08em;text-transform:uppercase;color:#cfd7df}
+.content{padding:14px}
+.section{margin-bottom:18px}
+.section-title{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.1em;margin:0 0 8px}
+.block-btn,.template-btn{width:100%;text-align:left;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:10px 11px;border-radius:11px;margin-bottom:7px;cursor:pointer;transition:.15s}
+.block-btn:hover,.template-btn:hover{border-color:#3b4653;transform:translateY(-1px)}
+.block-btn span{color:var(--muted);display:block;font-size:11px;margin-top:2px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:9px 12px;border-radius:10px;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:transparent;color:#08111f;font-weight:800}
+.btn.danger{color:#ff9baa}
+.builder-empty{border:1px dashed #34404b;border-radius:14px;padding:24px;text-align:center;color:var(--muted)}
+.card{border:1px solid var(--line);border-radius:14px;background:#14191f;margin-bottom:10px;overflow:hidden}
+.card-top{padding:11px 12px;background:#181e25;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+.card-title{font-weight:750}
+.card-body{padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label{display:flex;flex-direction:column;gap:5px;color:var(--muted);font-size:12px}
+input,select{background:#0f1318;color:var(--text);border:1px solid #2a333d;border-radius:9px;padding:9px 10px;outline:none}
+input:focus,select:focus{border-color:var(--accent)}
+.icon-btn{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:18px}
+.codewrap{position:relative;height:calc(100vh - 160px);min-height:520px}
+pre{margin:0;height:100%;overflow:auto;padding:18px;background:#0b0f13;color:#dfe7ef;font:13px/1.6 "SFMono-Regular",Consolas,"Liberation Mono",monospace;white-space:pre}
+.status{padding:9px 12px;border-top:1px solid var(--line);display:flex;justify-content:space-between;color:var(--muted);font-size:12px}
+.hl-comment{color:#6e7d8e}.hl-key{color:#a9c3ff}.hl-str{color:#b6e3b6}
+.note{color:var(--muted);font-size:12px;margin-top:8px}
+@media(max-width:1050px){.layout{grid-template-columns:240px 1fr}.preview{grid-column:1/-1}.codewrap{height:520px}}
+@media(max-width:720px){.layout{grid-template-columns:1fr}.panel{min-height:auto}.topbar{align-items:flex-start}.badge{display:none}.card-body{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">L</div>
+    <div><h1>Rifbot Lua Generator</h1><small>Visual script builder · local-only preview</small></div>
+  </div>
+  <div class="badge">V0.1</div>
+</header>
+
+<main class="layout">
+  <section class="panel">
+    <div class="panel-head"><h2>Blocks</h2></div>
+    <div class="content">
+      <div class="section">
+        <div class="section-title">Conditions</div>
+        <button class="block-btn" onclick="addBlock('targeting')">Targeting state<span>Run logic when targeting is ON/OFF</span></button>
+        <button class="block-btn" onclick="addBlock('mana')">Mana threshold<span>Trigger below a mana percentage</span></button>
+        <button class="block-btn" onclick="addBlock('hp')">HP threshold<span>Trigger below a health percentage</span></button>
+        <button class="block-btn" onclick="addBlock('players')">Player safety<span>React when another player is visible</span></button>
+      </div>
+      <div class="section">
+        <div class="section-title">Actions</div>
+        <button class="block-btn" onclick="addBlock('equip')">Equip item<span>Equip an item ID in a slot</span></button>
+        <button class="block-btn" onclick="addBlock('spell')">Cast spell<span>Say a spell / incantation</span></button>
+        <button class="block-btn" onclick="addBlock('wait')">Wait<span>Pause in milliseconds</span></button>
+        <button class="block-btn" onclick="addBlock('walker')">Walker toggle<span>Enable or disable walker</span></button>
+      </div>
+      <div class="section">
+        <div class="section-title">Templates</div>
+        <button class="template-btn" onclick="loadTemplate('ring')">Ring switch</button>
+        <button class="template-btn" onclick="loadTemplate('player')">Player safety</button>
+        <button class="template-btn" onclick="loadTemplate('mana')">Mana refill</button>
+        <button class="template-btn" onclick="loadTemplate('utani')">Utani Hur keeper</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Script Builder</h2>
+      <div class="actions"><button class="btn danger" onclick="clearBlocks()">Clear</button></div>
+    </div>
+    <div class="content">
+      <div id="builder"></div>
+      <div class="note">V0.1 generates readable Lua scaffolding. Rifbot API calls can be adjusted as we lock in the exact API functions your client supports.</div>
+    </div>
+  </section>
+
+  <section class="panel preview">
+    <div class="panel-head">
+      <h2>Generated Lua</h2>
+      <div class="actions">
+        <button class="btn" onclick="copyLua()">Copy Lua</button>
+        <button class="btn primary" onclick="downloadLua()">Download .lua</button>
+      </div>
+    </div>
+    <div class="codewrap"><pre id="code"></pre></div>
+    <div class="status"><span id="count">0 blocks</span><span>Live preview</span></div>
+  </section>
+</main>
+
+<script>
+let blocks = [];
+
+const defs = {
+ targeting:{title:"Targeting state",fields:[["state","State","select",["ON","OFF"]]]},
+ mana:{title:"Mana threshold",fields:[["value","Mana below (%)","number"],["action","Action","text"]]},
+ hp:{title:"HP threshold",fields:[["value","HP below (%)","number"],["action","Action","text"]]},
+ players:{title:"Player safety",fields:[["delay","Resume delay (ms)","number"]]},
+ equip:{title:"Equip item",fields:[["name","Item name","text"],["id","Item ID","number"],["slot","Slot","select",["ring","amulet","weapon"]]]},
+ spell:{title:"Cast spell",fields:[["spell","Spell","text"],["interval","Interval (ms)","number"]]},
+ wait:{title:"Wait",fields:[["ms","Milliseconds","number"]]},
+ walker:{title:"Walker toggle",fields:[["state","State","select",["ON","OFF"]]]}
+};
+const defaults = {
+ targeting:{state:"ON"}, mana:{value:20,action:"use mana fluid until 60%"}, hp:{value:65,action:"cast exura vita"},
+ players:{delay:5000}, equip:{name:"Frostwind Ring",id:12180,slot:"ring"}, spell:{spell:"utani hur",interval:25000},
+ wait:{ms:1000}, walker:{state:"OFF"}
+};
+
+function addBlock(type,data={}){
+  blocks.push({type,...defaults[type],...data,id:crypto.randomUUID()});
+  render();
+}
+function removeBlock(id){blocks=blocks.filter(b=>b.id!==id);render()}
+function clearBlocks(){blocks=[];render()}
+function updateBlock(id,key,value){
+  const b=blocks.find(x=>x.id===id); if(!b)return;
+  b[key]=value; generate();
+}
+function render(){
+  const el=document.getElementById("builder");
+  if(!blocks.length){
+    el.innerHTML='<div class="builder-empty"><strong>No blocks yet</strong><br><br>Add a block or load a template.</div>';
+  } else {
+    el.innerHTML=blocks.map((b,i)=>{
+      const d=defs[b.type];
+      const fields=d.fields.map(f=>{
+        const [key,label,type,opts]=f;
+        let input;
+        if(type==="select") input=`<select onchange="updateBlock('${b.id}','${key}',this.value)">${opts.map(o=>`<option ${String(b[key])===o?'selected':''}>${o}</option>`).join("")}</select>`;
+        else input=`<input type="${type}" value="${String(b[key]??'').replaceAll('"','&quot;')}" oninput="updateBlock('${b.id}','${key}',this.value)">`;
+        return `<label>${label}${input}</label>`;
+      }).join("");
+      return `<div class="card"><div class="card-top"><div class="card-title">${i+1}. ${d.title}</div><button class="icon-btn" onclick="removeBlock('${b.id}')">×</button></div><div class="card-body">${fields}</div></div>`;
+    }).join("");
+  }
+  generate();
+}
+function luaEscape(s){return String(s).replaceAll("\\","\\\\").replaceAll('"','\\"')}
+function generate(){
+  let out=`-- =============================================\n-- Rifbot Lua Generator · V0.1\n-- Generated locally in your browser\n-- =============================================\n\n-- EDITABLE SETTINGS\nlocal CHECK_INTERVAL = 200\n\n`;
+  if(!blocks.length) out += "-- Add blocks to generate your script.\n";
+  blocks.forEach((b,i)=>{
+    out += `-- Block ${i+1}: ${defs[b.type].title}\n`;
+    if(b.type==="targeting") out += `-- IF targeting is ${b.state}\n-- TODO: connect to your Rifbot targeting-state API\n\n`;
+    if(b.type==="mana") out += `-- IF manaPercent < ${b.value} THEN ${b.action}\n-- TODO: connect mana check + action to Rifbot API\n\n`;
+    if(b.type==="hp") out += `-- IF hpPercent < ${b.value} THEN ${b.action}\n-- TODO: connect HP check + action to Rifbot API\n\n`;
+    if(b.type==="players") out += `-- Player safety: pause walker + targeting when player is visible\nlocal PLAYER_RESUME_DELAY = ${b.delay}\n-- TODO: connect player detection / walker / targeting calls\n\n`;
+    if(b.type==="equip") out += `local ITEM_${i+1}_NAME = "${luaEscape(b.name)}"\nlocal ITEM_${i+1}_ID = ${b.id || 0}\nlocal ITEM_${i+1}_SLOT = "${b.slot}"\n-- TODO: equip item via Rifbot API\n\n`;
+    if(b.type==="spell") out += `local SPELL_${i+1} = "${luaEscape(b.spell)}"\nlocal SPELL_${i+1}_INTERVAL = ${b.interval || 0}\n-- TODO: cast/say spell via Rifbot API\n\n`;
+    if(b.type==="wait") out += `-- wait ${b.ms} ms\n-- TODO: delay(${b.ms}) using supported Rifbot function\n\n`;
+    if(b.type==="walker") out += `-- Walker ${b.state}\n-- TODO: connect walker toggle to Rifbot API\n\n`;
+  });
+  out += `-- Main loop scaffold\nwhile true do\n    -- Generated conditions/actions will be wired here\n    -- sleep/check interval: CHECK_INTERVAL\nend\n`;
+  document.getElementById("code").textContent=out;
+  document.getElementById("count").textContent=`${blocks.length} block${blocks.length===1?"":"s"}`;
+}
+function loadTemplate(name){
+  blocks=[];
+  if(name==="ring"){
+    addBlock("targeting",{state:"ON"});
+    addBlock("equip",{name:"Frostwind Ring",id:12180,slot:"ring"});
+    addBlock("targeting",{state:"OFF"});
+    addBlock("equip",{name:"Worn Angelic Ring",id:8058,slot:"ring"});
+  }
+  if(name==="player"){
+    addBlock("players",{delay:5000}); addBlock("walker",{state:"OFF"});
+  }
+  if(name==="mana"){
+    addBlock("mana",{value:20,action:"use mana potion until 60%"});
+  }
+  if(name==="utani"){
+    addBlock("players",{delay:5000}); addBlock("spell",{spell:"utani hur",interval:25000});
+  }
+}
+async function copyLua(){
+  await navigator.clipboard.writeText(document.getElementById("code").textContent);
+  const b=event.currentTarget,old=b.textContent;b.textContent="Copied";setTimeout(()=>b.textContent=old,1000)
+}
+function downloadLua(){
+  const blob=new Blob([document.getElementById("code").textContent],{type:"text/plain"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="rifbot-script.lua";a.click();URL.revokeObjectURL(a.href);
+}
+render();
+</script>
+</body>
+</html>
