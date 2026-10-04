@@ -106,7 +106,7 @@ pre{margin:0;height:100%;overflow:auto;padding:18px;background:#0b0f13;color:#df
     </div>
     <div class="content">
       <div id="builder"></div>
-      <div class="note">V0.2 adds source-inspired building blocks for alarms, supply checks, monster conditions and cavebot safety. Generated calls use the Rifbot-style APIs we have seen in working scripts where possible.</div>
+      <div class="note">V0.3 adds ready-to-run Rifbot templates for alarms, supply checks, monster conditions and cavebot safety. Generated calls use the Rifbot-style APIs we have seen in working scripts where possible.</div>
     </div>
   </section>
 
@@ -125,6 +125,7 @@ pre{margin:0;height:100%;overflow:auto;padding:18px;background:#0b0f13;color:#df
 
 <script>
 let blocks = [];
+let activePreset = null;
 
 const defs = {
  targeting:{title:"Targeting state",fields:[["state","State","select",["ON","OFF"]]]},
@@ -149,15 +150,16 @@ const defaults = {
  alarm:{label:"Supply warning"}, useitem:{itemId:2874,delay:1000}
 };
 
-function addBlock(type,data={}){
+function addBlock(type,data={},keepPreset=false){
+  if(!keepPreset) activePreset = null;
   blocks.push({type,...defaults[type],...data,uid:crypto.randomUUID()});
   render();
 }
-function removeBlock(uid){blocks=blocks.filter(b=>b.uid!==uid);render()}
-function clearBlocks(){blocks=[];render()}
+function removeBlock(uid){activePreset=null;blocks=blocks.filter(b=>b.uid!==uid);render()}
+function clearBlocks(){activePreset=null;blocks=[];render()}
 function updateBlock(uid,key,value){
   const b=blocks.find(x=>x.uid===uid); if(!b)return;
-  b[key]=value; generate();
+  activePreset=null; b[key]=value; generate();
 }
 function render(){
   const el=document.getElementById("builder");
@@ -178,8 +180,302 @@ function render(){
   }
   generate();
 }
+
+function presetCode(name){
+  if(name==="ring"){
+    return `-- =============================================
+-- Targeting Ring Switch
+-- EDITABLE SETTINGS
+-- =============================================
+local TARGETING_RING_ID = 12180
+local IDLE_RING_ID = 8058
+
+Module.New("Targeting Ring Switch", function ()
+    if Self.isConnected() then
+        if Targeting.isEnabled() then
+            if Self.Ring().id ~= TARGETING_RING_ID then
+                Self.EquipItem(SLOT_RING, TARGETING_RING_ID, 1, 0)
+            end
+        else
+            if Self.Ring().id ~= IDLE_RING_ID then
+                Self.EquipItem(SLOT_RING, IDLE_RING_ID, 1, 0)
+            end
+        end
+    end
+end)
+`;
+  }
+  if(name==="player"){
+    return `-- =============================================
+-- Player Safety
+-- EDITABLE SETTINGS
+-- =============================================
+local FRIENDS = {"friend1", "friend2"}
+local RESUME_AFTER_SECONDS = 5
+local STOP_WALKER = true
+
+-- DON'T EDIT BELOW
+local friends = table.lower(FRIENDS)
+local lastSeen = 0
+
+local function getPlayer()
+    local players = Creature.iPlayers(9, false)
+    for i = 1, #players do
+        local player = players[i]
+        if not table.find(friends, string.lower(player.name)) then
+            return player
+        end
+    end
+    return nil
+end
+
+Module.New("Player Safety", function ()
+    if not Self.isConnected() then return end
+
+    local player = getPlayer()
+    if player then
+        if STOP_WALKER and Walker.isEnabled() then Walker.Enabled(false) end
+        if Targeting.isEnabled() then Targeting.Enabled(false) end
+        lastSeen = os.clock()
+    elseif lastSeen > 0 and os.clock() - lastSeen >= RESUME_AFTER_SECONDS then
+        if STOP_WALKER and not Walker.isEnabled() then Walker.Enabled(true) end
+        if not Targeting.isEnabled() then Targeting.Enabled(true) end
+        lastSeen = 0
+    end
+end)
+`;
+  }
+  if(name==="mana"){
+    return `-- =============================================
+-- Mana Refill
+-- EDITABLE SETTINGS
+-- =============================================
+local MANA_FLUID_ID = 2874
+local START_BELOW = 20
+local STOP_AT = 60
+local USE_DELAY = {1000, 1300}
+
+Module.New("Mana Refill", function ()
+    if Self.isConnected() and Self.ManaPercent() < START_BELOW then
+        repeat
+            Self.UseItemWithMe(MANA_FLUID_ID, math.random(USE_DELAY[1], USE_DELAY[2]))
+        until Self.ManaPercent() >= STOP_AT
+    end
+end)
+`;
+  }
+  if(name==="utani"){
+    return `-- =============================================
+-- Utani Hur Keeper
+-- EDITABLE SETTINGS
+-- =============================================
+local SPELL = "utani hur"
+local RECAST_SECONDS = 25
+local FRIENDS = {}
+
+-- DON'T EDIT BELOW
+local lastCast = 0
+local friends = table.lower(FRIENDS)
+
+local function playerVisible()
+    local players = Creature.iPlayers(9, false)
+    for i = 1, #players do
+        if not table.find(friends, string.lower(players[i].name)) then
+            return true
+        end
+    end
+    return false
+end
+
+Module.New("Utani Hur Keeper", function ()
+    if not Self.isConnected() then return end
+    if not playerVisible() and os.clock() - lastCast >= RECAST_SECONDS then
+        Self.Say(SPELL)
+        lastCast = os.clock()
+    end
+end)
+`;
+  }
+  if(name==="lowmanaRing"){
+    return `-- =============================================
+-- Wear Ring on Low Mana
+-- EDITABLE SETTINGS
+-- =============================================
+local MANA_PERC = 50
+local RING = {on = 3089, off = 3052}
+
+Module.New("Wear Ring on Low Mana", function ()
+    if Self.isConnected() then
+        if Self.ManaPercent() <= MANA_PERC then
+            if Self.Ring().id ~= RING.on then
+                Self.EquipItem(SLOT_RING, RING.off, 1, 0)
+            end
+        elseif Self.Ring().id == RING.on then
+            Self.DequipItem(SLOT_RING)
+        end
+    end
+end)
+`;
+  }
+  if(name==="monsterRing"){
+    return `-- =============================================
+-- Equip Ring if Attacking Monster
+-- EDITABLE SETTINGS
+-- =============================================
+local RING = {on = 2205, off = 2168}
+local MONSTERS = {"Dragon", "Dragon Lord"}
+
+-- DON'T EDIT BELOW
+MONSTERS = table.lower(MONSTERS)
+
+local function getAttackedMonster()
+    local target = Self.TargetID()
+    if target <= 0 then return nil end
+    local creature = Creature.getCreatures(target)
+    if table.count(creature) < 2 then return nil end
+    return creature
+end
+
+Module.New("Equip Ring if Attacking Monster", function ()
+    if not Self.isConnected() then return end
+
+    local attack = getAttackedMonster()
+    local shouldEquip = attack and table.find(MONSTERS, string.lower(attack.name))
+    local ring = Self.Ring()
+
+    if shouldEquip then
+        if ring.id ~= RING.on then Self.EquipItem(SLOT_RING, RING.off, 1, 0) end
+    elseif ring.id == RING.on then
+        Self.DequipItem(SLOT_RING)
+    end
+end)
+`;
+  }
+  if(name==="safeMana"){
+    return `-- =============================================
+-- Safe Mana Fluid
+-- EDITABLE SETTINGS
+-- =============================================
+local FLUID_DELAY = {1000, 1500}
+local REACTION_DELAY = {2000, 3000}
+local MANA_BELOW = 70
+local SAFE_HEALTH = 50
+local MANA_FLUID_ID = 2874
+
+-- DON'T EDIT BELOW
+local startTime, waitDelay = 0, 0
+
+Module.New("Safe Mana Fluid", function ()
+    if Self.isConnected() then
+        if Self.ManaPercent() <= MANA_BELOW then
+            if startTime == 0 then
+                startTime = os.clock()
+                waitDelay = math.random(REACTION_DELAY[1], REACTION_DELAY[2])
+            elseif os.clock() - startTime >= waitDelay / 1000 then
+                if Self.HealthPercent() >= SAFE_HEALTH then
+                    Self.UseItemWithMe(MANA_FLUID_ID, math.random(FLUID_DELAY[1], FLUID_DELAY[2]))
+                end
+            end
+        else
+            startTime = 0
+        end
+    end
+end)
+`;
+  }
+  if(name==="manaAlarm"){
+    return `-- =============================================
+-- Low Mana Alarm
+-- EDITABLE SETTINGS
+-- =============================================
+local MANA_POINTS = 150
+local PAUSE_BOT = false
+
+Module.New("Low Mana Alarm", function ()
+    if Self.isConnected() and Self.Mana() < MANA_POINTS then
+        Rifbot.PlaySound()
+        if PAUSE_BOT then Rifbot.setEnabled(false, true) end
+        print("Low mana: " .. Self.Mana())
+    end
+end)
+`;
+  }
+  if(name==="supplyAlarm"){
+    return `-- =============================================
+-- Supply Count Alarm
+-- EDITABLE SETTINGS
+-- =============================================
+local ITEM_ID = 2874
+local MIN_COUNT = 300
+local PAUSE_BOT = false
+
+Module.New("Supply Count Alarm", function ()
+    if not Self.isConnected() then return end
+
+    local count = Self.ItemCount(ITEM_ID)
+    if count < MIN_COUNT then
+        Rifbot.PlaySound()
+        if PAUSE_BOT then Rifbot.setEnabled(false, true) end
+        print("Supply low. Item " .. ITEM_ID .. ": " .. count)
+    end
+end)
+`;
+  }
+  if(name==="cavebotSafety"){
+    return `-- =============================================
+-- Stop Cavebot on Player
+-- EDITABLE SETTINGS
+-- =============================================
+local FRIENDS = {"friend1", "friend2"}
+local RESUME_AFTER_SECONDS = 5
+
+-- DON'T EDIT BELOW
+local friends = table.lower(FRIENDS)
+local lastPlayerSeen = 0
+
+local function getPlayer()
+    local players = Creature.iPlayers(9, false)
+    for i = 1, #players do
+        local player = players[i]
+        if not table.find(friends, string.lower(player.name)) then
+            return player
+        end
+    end
+    return nil
+end
+
+Module.New("Stop Cavebot on Player", function ()
+    if not Self.isConnected() then return end
+
+    local player = getPlayer()
+    local walker = Walker.isEnabled()
+    local targeting = Targeting.isEnabled()
+
+    if player then
+        if walker then Walker.Enabled(false) end
+        if targeting then Targeting.Enabled(false) end
+        lastPlayerSeen = os.clock()
+    elseif lastPlayerSeen > 0 and os.clock() - lastPlayerSeen >= RESUME_AFTER_SECONDS then
+        if not walker then Walker.Enabled(true) end
+        if not targeting then Targeting.Enabled(true) end
+        lastPlayerSeen = 0
+    end
+end)
+`;
+  }
+  return null;
+}
+
 function luaEscape(s){return String(s).replaceAll("\\","\\\\").replaceAll('"','\\"')}
 function generate(){
+  if(activePreset){
+    const preset = presetCode(activePreset);
+    if(preset){
+      document.getElementById("code").textContent = preset;
+      document.getElementById("count").textContent = `${blocks.length} block${blocks.length===1?"":"s"} · ready script`;
+      return;
+    }
+  }
   let out=`-- =============================================\n-- Rifbot Lua Generator · V0.2\n-- Generated locally in your browser\n-- =============================================\n\n-- EDITABLE SETTINGS\nlocal CHECK_INTERVAL = 200\n\n`;
   if(!blocks.length) out += "-- Add blocks to generate your script.\n";
   blocks.forEach((b,i)=>{
@@ -204,45 +500,46 @@ function generate(){
 }
 function loadTemplate(name){
   blocks=[];
+  activePreset=name;
   if(name==="ring"){
-    addBlock("targeting",{state:"ON"});
-    addBlock("equip",{name:"Frostwind Ring",itemId:12180,slot:"ring"});
-    addBlock("targeting",{state:"OFF"});
-    addBlock("equip",{name:"Worn Angelic Ring",itemId:8058,slot:"ring"});
+    addBlock("targeting",{state:"ON"},true);
+    addBlock("equip",{name:"Frostwind Ring",itemId:12180,slot:"ring"},true);
+    addBlock("targeting",{state:"OFF"},true);
+    addBlock("equip",{name:"Worn Angelic Ring",itemId:8058,slot:"ring"},true);
   }
   if(name==="player"){
-    addBlock("players",{delay:5000}); addBlock("walker",{state:"OFF"});
+    addBlock("players",{delay:5000},true); addBlock("walker",{state:"OFF"},true);
   }
   if(name==="mana"){
-    addBlock("mana",{value:20,action:"use mana potion until 60%"});
+    addBlock("mana",{value:20,action:"use mana potion until 60%"},true);
   }
   if(name==="utani"){
-    addBlock("players",{delay:5000}); addBlock("spell",{spell:"utani hur",interval:25000});
+    addBlock("players",{delay:5000},true); addBlock("spell",{spell:"utani hur",interval:25000},true);
   }
   if(name==="lowmanaRing"){
-    addBlock("mana",{value:55,action:"equip life/mana ring"});
-    addBlock("equip",{name:"Life Ring",itemId:3052,slot:"ring"});
+    addBlock("mana",{value:55,action:"equip life/mana ring"},true);
+    addBlock("equip",{name:"Life Ring",itemId:3052,slot:"ring"},true);
   }
   if(name==="monsterRing"){
-    addBlock("monster",{name:"Dragon Lord",range:7});
-    addBlock("equip",{name:"Protection Ring",itemId:0,slot:"ring"});
+    addBlock("monster",{name:"Dragon Lord",range:7},true);
+    addBlock("equip",{name:"Protection Ring",itemId:0,slot:"ring"},true);
   }
   if(name==="safeMana"){
-    addBlock("mana",{value:70,action:"use mana fluid"});
-    addBlock("useitem",{itemId:2874,delay:1200});
+    addBlock("mana",{value:70,action:"use mana fluid"},true);
+    addBlock("useitem",{itemId:2874,delay:1200},true);
   }
   if(name==="manaAlarm"){
-    addBlock("mana",{value:20,action:"play alarm"});
-    addBlock("alarm",{label:"Low mana"});
+    addBlock("mana",{value:20,action:"play alarm"},true);
+    addBlock("alarm",{label:"Low mana"},true);
   }
   if(name==="supplyAlarm"){
-    addBlock("itemcount",{itemId:2874,count:300});
-    addBlock("alarm",{label:"Mana fluids below minimum"});
+    addBlock("itemcount",{itemId:2874,count:300},true);
+    addBlock("alarm",{label:"Mana fluids below minimum"},true);
   }
   if(name==="cavebotSafety"){
-    addBlock("players",{delay:5000});
-    addBlock("walker",{state:"OFF"});
-    addBlock("targettoggle",{state:"OFF"});
+    addBlock("players",{delay:5000},true);
+    addBlock("walker",{state:"OFF"},true);
+    addBlock("targettoggle",{state:"OFF"},true);
   }
 }
 async function copyLua(){
