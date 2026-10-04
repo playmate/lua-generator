@@ -55,9 +55,9 @@ pre{margin:0;height:100%;overflow:auto;padding:18px;background:#0b0f13;color:#df
 <header class="topbar">
   <div class="brand">
     <div class="logo">L</div>
-    <div><h1>Rifbot Lua Generator</h1><small>Visual script builder · local-only preview</small></div>
+    <div><h1>Rifbot Lua Generator</h1><small>Visual script builder · visual builder · templates · live Lua preview</small></div>
   </div>
-  <div class="badge">V0.1</div>
+  <div class="badge">V0.2</div>
 </header>
 
 <main class="layout">
@@ -70,6 +70,8 @@ pre{margin:0;height:100%;overflow:auto;padding:18px;background:#0b0f13;color:#df
         <button class="block-btn" onclick="addBlock('mana')">Mana threshold<span>Trigger below a mana percentage</span></button>
         <button class="block-btn" onclick="addBlock('hp')">HP threshold<span>Trigger below a health percentage</span></button>
         <button class="block-btn" onclick="addBlock('players')">Player safety<span>React when another player is visible</span></button>
+        <button class="block-btn" onclick="addBlock('monster')">Monster condition<span>React to a monster name on screen</span></button>
+        <button class="block-btn" onclick="addBlock('itemcount')">Item count<span>Trigger when supplies fall below a count</span></button>
       </div>
       <div class="section">
         <div class="section-title">Actions</div>
@@ -77,6 +79,9 @@ pre{margin:0;height:100%;overflow:auto;padding:18px;background:#0b0f13;color:#df
         <button class="block-btn" onclick="addBlock('spell')">Cast spell<span>Say a spell / incantation</span></button>
         <button class="block-btn" onclick="addBlock('wait')">Wait<span>Pause in milliseconds</span></button>
         <button class="block-btn" onclick="addBlock('walker')">Walker toggle<span>Enable or disable walker</span></button>
+        <button class="block-btn" onclick="addBlock('targettoggle')">Targeting toggle<span>Enable or disable targeting</span></button>
+        <button class="block-btn" onclick="addBlock('alarm')">Play alarm<span>Sound alert with a custom label</span></button>
+        <button class="block-btn" onclick="addBlock('useitem')">Use item<span>Use an item ID on yourself</span></button>
       </div>
       <div class="section">
         <div class="section-title">Templates</div>
@@ -84,6 +89,12 @@ pre{margin:0;height:100%;overflow:auto;padding:18px;background:#0b0f13;color:#df
         <button class="template-btn" onclick="loadTemplate('player')">Player safety</button>
         <button class="template-btn" onclick="loadTemplate('mana')">Mana refill</button>
         <button class="template-btn" onclick="loadTemplate('utani')">Utani Hur keeper</button>
+        <button class="template-btn" onclick="loadTemplate('lowmanaRing')">Low mana ring</button>
+        <button class="template-btn" onclick="loadTemplate('monsterRing')">Ring on monster</button>
+        <button class="template-btn" onclick="loadTemplate('safeMana')">Safe mana fluid</button>
+        <button class="template-btn" onclick="loadTemplate('manaAlarm')">Low mana alarm</button>
+        <button class="template-btn" onclick="loadTemplate('supplyAlarm')">Supply count alarm</button>
+        <button class="template-btn" onclick="loadTemplate('cavebotSafety')">Player → stop cavebot</button>
       </div>
     </div>
   </section>
@@ -95,7 +106,7 @@ pre{margin:0;height:100%;overflow:auto;padding:18px;background:#0b0f13;color:#df
     </div>
     <div class="content">
       <div id="builder"></div>
-      <div class="note">V0.1 generates readable Lua scaffolding. Rifbot API calls can be adjusted as we lock in the exact API functions your client supports.</div>
+      <div class="note">V0.2 adds source-inspired building blocks for alarms, supply checks, monster conditions and cavebot safety. Generated calls use the Rifbot-style APIs we have seen in working scripts where possible.</div>
     </div>
   </section>
 
@@ -120,25 +131,32 @@ const defs = {
  mana:{title:"Mana threshold",fields:[["value","Mana below (%)","number"],["action","Action","text"]]},
  hp:{title:"HP threshold",fields:[["value","HP below (%)","number"],["action","Action","text"]]},
  players:{title:"Player safety",fields:[["delay","Resume delay (ms)","number"]]},
- equip:{title:"Equip item",fields:[["name","Item name","text"],["id","Item ID","number"],["slot","Slot","select",["ring","amulet","weapon"]]]},
+ monster:{title:"Monster condition",fields:[["name","Monster name","text"],["range","Range (sqm)","number"]]},
+ itemcount:{title:"Item count",fields:[["itemId","Item ID","number"],["count","Below count","number"]]},
+ equip:{title:"Equip item",fields:[["name","Item name","text"],["itemId","Item ID","number"],["slot","Slot","select",["ring","amulet","weapon"]]]},
  spell:{title:"Cast spell",fields:[["spell","Spell","text"],["interval","Interval (ms)","number"]]},
  wait:{title:"Wait",fields:[["ms","Milliseconds","number"]]},
- walker:{title:"Walker toggle",fields:[["state","State","select",["ON","OFF"]]]}
+ walker:{title:"Walker toggle",fields:[["state","State","select",["ON","OFF"]]]},
+ targettoggle:{title:"Targeting toggle",fields:[["state","State","select",["ON","OFF"]]]},
+ alarm:{title:"Play alarm",fields:[["label","Alarm label","text"]]},
+ useitem:{title:"Use item",fields:[["itemId","Item ID","number"],["delay","Delay (ms)","number"]]}
 };
 const defaults = {
  targeting:{state:"ON"}, mana:{value:20,action:"use mana fluid until 60%"}, hp:{value:65,action:"cast exura vita"},
- players:{delay:5000}, equip:{name:"Frostwind Ring",id:12180,slot:"ring"}, spell:{spell:"utani hur",interval:25000},
- wait:{ms:1000}, walker:{state:"OFF"}
+ players:{delay:5000}, monster:{name:"Dragon Lord",range:7}, itemcount:{itemId:2874,count:300},
+ equip:{name:"Frostwind Ring",itemId:12180,slot:"ring"}, spell:{spell:"utani hur",interval:25000},
+ wait:{ms:1000}, walker:{state:"OFF"}, targettoggle:{state:"OFF"},
+ alarm:{label:"Supply warning"}, useitem:{itemId:2874,delay:1000}
 };
 
 function addBlock(type,data={}){
-  blocks.push({type,...defaults[type],...data,id:crypto.randomUUID()});
+  blocks.push({type,...defaults[type],...data,uid:crypto.randomUUID()});
   render();
 }
-function removeBlock(id){blocks=blocks.filter(b=>b.id!==id);render()}
+function removeBlock(uid){blocks=blocks.filter(b=>b.uid!==uid);render()}
 function clearBlocks(){blocks=[];render()}
-function updateBlock(id,key,value){
-  const b=blocks.find(x=>x.id===id); if(!b)return;
+function updateBlock(uid,key,value){
+  const b=blocks.find(x=>x.uid===uid); if(!b)return;
   b[key]=value; generate();
 }
 function render(){
@@ -151,29 +169,34 @@ function render(){
       const fields=d.fields.map(f=>{
         const [key,label,type,opts]=f;
         let input;
-        if(type==="select") input=`<select onchange="updateBlock('${b.id}','${key}',this.value)">${opts.map(o=>`<option ${String(b[key])===o?'selected':''}>${o}</option>`).join("")}</select>`;
-        else input=`<input type="${type}" value="${String(b[key]??'').replaceAll('"','&quot;')}" oninput="updateBlock('${b.id}','${key}',this.value)">`;
+        if(type==="select") input=`<select onchange="updateBlock('${b.uid}','${key}',this.value)">${opts.map(o=>`<option ${String(b[key])===o?'selected':''}>${o}</option>`).join("")}</select>`;
+        else input=`<input type="${type}" value="${String(b[key]??'').replaceAll('"','&quot;')}" oninput="updateBlock('${b.uid}','${key}',this.value)">`;
         return `<label>${label}${input}</label>`;
       }).join("");
-      return `<div class="card"><div class="card-top"><div class="card-title">${i+1}. ${d.title}</div><button class="icon-btn" onclick="removeBlock('${b.id}')">×</button></div><div class="card-body">${fields}</div></div>`;
+      return `<div class="card"><div class="card-top"><div class="card-title">${i+1}. ${d.title}</div><button class="icon-btn" onclick="removeBlock('${b.uid}')">×</button></div><div class="card-body">${fields}</div></div>`;
     }).join("");
   }
   generate();
 }
 function luaEscape(s){return String(s).replaceAll("\\","\\\\").replaceAll('"','\\"')}
 function generate(){
-  let out=`-- =============================================\n-- Rifbot Lua Generator · V0.1\n-- Generated locally in your browser\n-- =============================================\n\n-- EDITABLE SETTINGS\nlocal CHECK_INTERVAL = 200\n\n`;
+  let out=`-- =============================================\n-- Rifbot Lua Generator · V0.2\n-- Generated locally in your browser\n-- =============================================\n\n-- EDITABLE SETTINGS\nlocal CHECK_INTERVAL = 200\n\n`;
   if(!blocks.length) out += "-- Add blocks to generate your script.\n";
   blocks.forEach((b,i)=>{
     out += `-- Block ${i+1}: ${defs[b.type].title}\n`;
     if(b.type==="targeting") out += `-- IF targeting is ${b.state}\n-- TODO: connect to your Rifbot targeting-state API\n\n`;
     if(b.type==="mana") out += `-- IF manaPercent < ${b.value} THEN ${b.action}\n-- TODO: connect mana check + action to Rifbot API\n\n`;
     if(b.type==="hp") out += `-- IF hpPercent < ${b.value} THEN ${b.action}\n-- TODO: connect HP check + action to Rifbot API\n\n`;
-    if(b.type==="players") out += `-- Player safety: pause walker + targeting when player is visible\nlocal PLAYER_RESUME_DELAY = ${b.delay}\n-- TODO: connect player detection / walker / targeting calls\n\n`;
-    if(b.type==="equip") out += `local ITEM_${i+1}_NAME = "${luaEscape(b.name)}"\nlocal ITEM_${i+1}_ID = ${b.id || 0}\nlocal ITEM_${i+1}_SLOT = "${b.slot}"\n-- TODO: equip item via Rifbot API\n\n`;
+    if(b.type==="players") out += `-- Player safety\nlocal PLAYER_RESUME_DELAY = ${b.delay}\n-- Pattern: if a player is detected, pause modules and resume after the delay.\n\n`;
+    if(b.type==="monster") out += `local MONSTER_NAME_${i+1} = "${luaEscape(b.name)}"\nlocal MONSTER_RANGE_${i+1} = ${b.range || 7}\n-- Trigger actions when this monster is visible/in range.\n\n`;
+    if(b.type==="itemcount") out += `local SUPPLY_ITEM_${i+1} = ${b.itemId || 0}\nlocal SUPPLY_MIN_${i+1} = ${b.count || 0}\n-- Trigger when item count is below SUPPLY_MIN_${i+1}.\n\n`;
+    if(b.type==="equip") out += `local ITEM_${i+1}_NAME = "${luaEscape(b.name)}"\nlocal ITEM_${i+1}_ID = ${b.itemId || 0}\nlocal ITEM_${i+1}_SLOT = "${b.slot}"\n-- Rifbot-style equip pattern: Self.EquipItem(SLOT_RING, ITEM_${i+1}_ID, 1, 0)\n\n`;
     if(b.type==="spell") out += `local SPELL_${i+1} = "${luaEscape(b.spell)}"\nlocal SPELL_${i+1}_INTERVAL = ${b.interval || 0}\n-- TODO: cast/say spell via Rifbot API\n\n`;
     if(b.type==="wait") out += `-- wait ${b.ms} ms\n-- TODO: delay(${b.ms}) using supported Rifbot function\n\n`;
-    if(b.type==="walker") out += `-- Walker ${b.state}\n-- TODO: connect walker toggle to Rifbot API\n\n`;
+    if(b.type==="walker") out += `-- Walker ${b.state}\nWalker.Enabled(${b.state==="ON"?"true":"false"})\n\n`;
+    if(b.type==="targettoggle") out += `-- Targeting ${b.state}\nTargeting.Enabled(${b.state==="ON"?"true":"false"})\n\n`;
+    if(b.type==="alarm") out += `-- Alarm: ${luaEscape(b.label)}\n-- Add your preferred Rifbot sound/alarm call here.\n\n`;
+    if(b.type==="useitem") out += `local USE_ITEM_${i+1} = ${b.itemId || 0}\nlocal USE_DELAY_${i+1} = ${b.delay || 0}\n-- Use this item on self with the configured delay.\n\n`;
   });
   out += `-- Main loop scaffold\nwhile true do\n    -- Generated conditions/actions will be wired here\n    -- sleep/check interval: CHECK_INTERVAL\nend\n`;
   document.getElementById("code").textContent=out;
@@ -183,9 +206,9 @@ function loadTemplate(name){
   blocks=[];
   if(name==="ring"){
     addBlock("targeting",{state:"ON"});
-    addBlock("equip",{name:"Frostwind Ring",id:12180,slot:"ring"});
+    addBlock("equip",{name:"Frostwind Ring",itemId:12180,slot:"ring"});
     addBlock("targeting",{state:"OFF"});
-    addBlock("equip",{name:"Worn Angelic Ring",id:8058,slot:"ring"});
+    addBlock("equip",{name:"Worn Angelic Ring",itemId:8058,slot:"ring"});
   }
   if(name==="player"){
     addBlock("players",{delay:5000}); addBlock("walker",{state:"OFF"});
@@ -195,6 +218,31 @@ function loadTemplate(name){
   }
   if(name==="utani"){
     addBlock("players",{delay:5000}); addBlock("spell",{spell:"utani hur",interval:25000});
+  }
+  if(name==="lowmanaRing"){
+    addBlock("mana",{value:55,action:"equip life/mana ring"});
+    addBlock("equip",{name:"Life Ring",itemId:3052,slot:"ring"});
+  }
+  if(name==="monsterRing"){
+    addBlock("monster",{name:"Dragon Lord",range:7});
+    addBlock("equip",{name:"Protection Ring",itemId:0,slot:"ring"});
+  }
+  if(name==="safeMana"){
+    addBlock("mana",{value:70,action:"use mana fluid"});
+    addBlock("useitem",{itemId:2874,delay:1200});
+  }
+  if(name==="manaAlarm"){
+    addBlock("mana",{value:20,action:"play alarm"});
+    addBlock("alarm",{label:"Low mana"});
+  }
+  if(name==="supplyAlarm"){
+    addBlock("itemcount",{itemId:2874,count:300});
+    addBlock("alarm",{label:"Mana fluids below minimum"});
+  }
+  if(name==="cavebotSafety"){
+    addBlock("players",{delay:5000});
+    addBlock("walker",{state:"OFF"});
+    addBlock("targettoggle",{state:"OFF"});
   }
 }
 async function copyLua(){
